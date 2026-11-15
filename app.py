@@ -3,52 +3,45 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
 from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
 
+import base64
+import requests
 import sandbox_core as core
 
 st.set_page_config(page_title="SimTrading", layout="wide")
 FNAME = "investing_sandbox_state.json"
 
 
-# ---------- Google Drive (service account, file lives in a folder you share with it) ----------
-@st.cache_resource
-def drive():
-    info = dict(st.secrets["gcp_service_account"])
-    creds = Credentials.from_service_account_info(info, scopes=["https://www.googleapis.com/auth/drive"])
-    return build("drive", "v3", credentials=creds, cache_discovery=False)
+# ---------- storage: one JSON file in your GitHub repo (token and repo come from Streamlit secrets) ----------
+GH_PATH = "data/investing_sandbox_state.json"
 
 
-def _find(svc):
-    folder = st.secrets["drive_folder_id"]
-    q = f"name='{FNAME}' and '{folder}' in parents and trashed=false"
-    files = svc.files().list(q=q, fields="files(id)", spaces="drive").execute().get("files", [])
-    return files[0]["id"] if files else None
+def _gh_url():
+    return f"https://api.github.com/repos/{st.secrets['github_repo']}/contents/{GH_PATH}"
+
+
+def _gh_headers():
+    return {"Authorization": f"Bearer {st.secrets['github_token']}", "Accept": "application/vnd.github+json"}
 
 
 def load_state():
-    svc = drive()
-    fid = _find(svc)
-    if not fid:
+    r = requests.get(_gh_url(), headers=_gh_headers(), timeout=30)
+    if r.status_code == 404:
         return None
-    buf = io.BytesIO()
-    dl = MediaIoBaseDownload(buf, svc.files().get_media(fileId=fid))
-    done = False
-    while not done:
-        _, done = dl.next_chunk()
-    return json.loads(buf.getvalue().decode())
+    r.raise_for_status()
+    body = r.json()
+    st.session_state["gh_sha"] = body["sha"]
+    return json.loads(base64.b64decode(body["content"]).decode())
 
 
 def save_state(state):
-    svc = drive()
-    media = MediaIoBaseUpload(io.BytesIO(json.dumps(state, indent=1).encode()), mimetype="application/json")
-    fid = _find(svc)
-    if fid:
-        svc.files().update(fileId=fid, media_body=media).execute()
-    else:
-        svc.files().create(body={"name": FNAME, "parents": [st.secrets["drive_folder_id"]]},
-                           media_body=media, fields="id").execute()
+    payload = {"message": f"Sandbox update {core.TODAY}",
+               "content": base64.b64encode(json.dumps(state, indent=1).encode()).decode()}
+    if st.session_state.get("gh_sha"):
+        payload["sha"] = st.session_state["gh_sha"]
+    r = requests.put(_gh_url(), headers=_gh_headers(), json=payload, timeout=30)
+    r.raise_for_status()
+    st.session_state["gh_sha"] = r.json()["content"]["sha"]
 
 
 _orig_fetch = core.fetch
@@ -67,7 +60,7 @@ if "state" not in st.session_state:
     try:
         st.session_state.state = load_state() or core.new_state()
     except Exception as e:
-        st.error(f"Could not read Drive: {e}")
+        st.error(f"Could not read saved state: {e}")
         st.stop()
 S = st.session_state.state
 
@@ -76,7 +69,7 @@ def persist():
     try:
         save_state(S)
     except Exception as e:
-        st.error(f"Saved in this session only. Drive save failed: {e}")
+        st.error(f"Save failed, so changes exist only in this session: {e}")
 
 
 def fail(e):
