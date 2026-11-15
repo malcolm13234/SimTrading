@@ -1,5 +1,7 @@
 import io, json
+import base64
 import pandas as pd
+import requests
 import matplotlib.pyplot as plt
 import streamlit as st
 from google.oauth2.service_account import Credentials
@@ -21,18 +23,62 @@ def cached_fetch(tickers, start):
 core.fetch = cached_fetch  # core.refresh and core.place_trade use the cached price fetch
 
 
-# ---------- state: no accounts or secrets. Download the file to keep it; upload it next visit ----------
+# ---------- state: auto-synced to this repo through a token kept in Streamlit Secrets ----------
+GH_PATH = "data/investing_sandbox_state.json"
+
+
+def sync_on():
+    return "github_token" in st.secrets and "github_repo" in st.secrets
+
+
+def _gh_url():
+    return f"https://api.github.com/repos/{st.secrets['github_repo']}/contents/{GH_PATH}"
+
+
+def _gh_headers():
+    return {"Authorization": f"Bearer {st.secrets['github_token']}", "Accept": "application/vnd.github+json"}
+
+
+def gh_load():
+    r = requests.get(_gh_url(), headers=_gh_headers(), timeout=30)
+    if r.status_code == 404:
+        return None
+    r.raise_for_status()
+    body = r.json()
+    st.session_state["gh_sha"] = body["sha"]
+    return json.loads(base64.b64decode(body["content"]).decode())
+
+
+def gh_save(state):
+    payload = {"message": f"Sandbox update {core.TODAY}",
+               "content": base64.b64encode(json.dumps(state, indent=1).encode()).decode()}
+    if st.session_state.get("gh_sha"):
+        payload["sha"] = st.session_state["gh_sha"]
+    r = requests.put(_gh_url(), headers=_gh_headers(), json=payload, timeout=30)
+    r.raise_for_status()
+    st.session_state["gh_sha"] = r.json()["content"]["sha"]
+
+
 def persist():
-    pass  # changes live in this browser session until you press Download state in the sidebar
+    if not sync_on():
+        return
+    try:
+        gh_save(st.session_state.state)
+    except Exception as e:
+        st.sidebar.error(f"Auto-sync failed, changes are only in this session: {e}")
 
 
 if "state" not in st.session_state:
-    st.session_state.state = core.new_state()
-up = st.sidebar.file_uploader("Load saved state (.json)", type="json", key="upload")
-if up is not None and st.session_state.get("loaded_tag") != up.name + str(up.size):
-    st.session_state.state = json.loads(up.getvalue().decode())
-    st.session_state.loaded_tag = up.name + str(up.size)
-    st.rerun()
+    loaded = None
+    if sync_on():
+        try:
+            loaded = gh_load()
+        except Exception as e:
+            st.error(f"Could not load saved state from GitHub, so the app stopped to protect it: {e}")
+            st.stop()
+    st.session_state.state = loaded or core.new_state()
+if not sync_on():
+    st.sidebar.caption("Not syncing. Add github_token and github_repo in Streamlit Secrets.")
 S = st.session_state.state
 
 
