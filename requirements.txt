@@ -1,0 +1,6 @@
+streamlit
+pandas
+matplotlib
+yfinance
+google-api-python-client
+google-auth
