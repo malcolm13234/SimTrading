@@ -42,15 +42,26 @@ GH_STATE = "data/investing_sandbox_state.json"
 GH_MARKET = "data/market_data.json"       # every daily bar the app has used, written compactly
 
 
-def sync_on():
+DEFAULT_REPO = "malcolm13234/SimTrading"   # used when the github_repo secret is not set
+
+
+def secret_names():
     try:
-        return "github_token" in st.secrets and "github_repo" in st.secrets
+        return sorted(st.secrets.keys())
     except Exception:       # no secrets file at all: run without syncing instead of crashing
-        return False
+        return []
+
+
+def sync_on():
+    return "github_token" in secret_names()
+
+
+def gh_repo():
+    return st.secrets["github_repo"] if "github_repo" in secret_names() else DEFAULT_REPO
 
 
 def _gh_url(path):
-    return f"https://api.github.com/repos/{st.secrets['github_repo']}/contents/{path}"
+    return f"https://api.github.com/repos/{gh_repo()}/contents/{path}"
 
 
 def _gh_headers():
@@ -67,7 +78,7 @@ def gh_get(path):
     if body.get("content"):
         raw = base64.b64decode(body["content"])
     else:   # the contents API leaves out the body of files over 1 MB; the blob API has it
-        b = requests.get(f"https://api.github.com/repos/{st.secrets['github_repo']}/git/blobs/{body['sha']}",
+        b = requests.get(f"https://api.github.com/repos/{gh_repo()}/git/blobs/{body['sha']}",
                          headers=_gh_headers(), timeout=60)
         b.raise_for_status()
         raw = base64.b64decode(b.json()["content"])
@@ -116,7 +127,10 @@ if "state" not in st.session_state:
     st.session_state.state = loaded or core.new_state()
     st.session_state.market = market or core.new_market()
 if not sync_on():
-    st.sidebar.caption("Not syncing. Add github_token and github_repo in Streamlit Secrets.")
+    st.sidebar.caption("Not syncing: no secret named github_token. Secret names this app can see: "
+                       f"{secret_names() or 'none'}. Add github_token in the app's Settings, Secrets.")
+else:
+    st.sidebar.caption(f"Syncing to {gh_repo()}")
 S = st.session_state.state
 M = st.session_state.market
 
