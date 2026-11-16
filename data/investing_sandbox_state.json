@@ -1,0 +1,140 @@
+{
+ "opening": {
+  "SPY": 17000.0
+ },
+ "cash": 6000.0,
+ "opened": true,
+ "start_date": "2026-11-13",
+ "tickers": [
+  "SPY"
+ ],
+ "events": [
+  {
+   "date": "2026-11-13",
+   "kind": "CASH",
+   "ticker": "CASH",
+   "shares": 0.0,
+   "price": 1.0,
+   "cash": 6000.0,
+   "fee": 0.0,
+   "cost": 0.0,
+   "tax_rate": 0.0,
+   "reason": "Opening cash"
+  },
+  {
+   "date": "2026-11-13",
+   "kind": "OPEN",
+   "ticker": "SPY",
+   "shares": 22.53536077791527,
+   "price": 754.3699951171875,
+   "cash": 0.0,
+   "fee": 0.0,
+   "cost": 0.0,
+   "tax_rate": 0.0,
+   "reason": "Opening position"
+  }
+ ],
+ "orders": [],
+ "settings": [
+  {
+   "key": "spread_pct",
+   "value": 0.05,
+   "effective": "2026-11-13",
+   "logged_at": "2026-11-16T06:55:53",
+   "reason": "Default: 0.05% full bid-ask spread",
+   "default": true
+  },
+  {
+   "key": "fee",
+   "value": 0.0,
+   "effective": "2026-11-13",
+   "logged_at": "2026-11-16T06:55:53",
+   "reason": "Default: $0 commission per trade",
+   "default": true
+  },
+  {
+   "key": "tax_rate",
+   "value": 15.0,
+   "effective": "2026-11-13",
+   "logged_at": "2026-11-16T06:55:53",
+   "reason": "Default: 15% estimated tax on gains",
+   "default": true
+  },
+  {
+   "key": "fractional",
+   "value": true,
+   "effective": "2026-11-13",
+   "logged_at": "2026-11-16T06:55:53",
+   "reason": "Default: fractional shares on",
+   "default": true
+  },
+  {
+   "key": "rebalance",
+   "value": "Manual",
+   "effective": "2026-11-13",
+   "logged_at": "2026-11-16T06:55:53",
+   "reason": "Default: manual rebalancing",
+   "default": true
+  },
+  {
+   "key": "reinvest_SPY",
+   "value": 100.0,
+   "effective": "2026-11-13",
+   "logged_at": "2026-11-16T06:55:53",
+   "reason": "Default: reinvest 100%",
+   "default": true
+  },
+  {
+   "key": "slippage_pct",
+   "value": 0.01,
+   "effective": "2026-11-13",
+   "logged_at": "2026-11-16T06:55:53",
+   "reason": "Default: 0.01% extra market-order slippage per side",
+   "default": true
+  },
+  {
+   "key": "fee_per_share",
+   "value": 0.0,
+   "effective": "2026-11-13",
+   "logged_at": "2026-11-16T06:55:53",
+   "reason": "Default: $0 per-share commission",
+   "default": true
+  },
+  {
+   "key": "sec_fee_per_million",
+   "value": 20.6,
+   "effective": "2026-11-13",
+   "logged_at": "2026-11-16T06:55:53",
+   "reason": "SEC Section 31 fee on sales: $20.60 per $1M from 2026-04-04 (SEC Fee Rate Advisory, FY2026)",
+   "default": true
+  },
+  {
+   "key": "taf_per_share",
+   "value": 0.0,
+   "effective": "2026-11-13",
+   "logged_at": "2026-11-16T06:55:53",
+   "reason": "FINRA TAF paused 2026-10-01 to 2026-12-31 (SR-FINRA-2026-021)",
+   "default": true
+  },
+  {
+   "key": "taf_per_share",
+   "value": 0.000195,
+   "effective": "2027-01-01",
+   "logged_at": "2026-11-16T06:55:53",
+   "reason": "Scheduled: FINRA TAF resumes 2027-01-01 at $0.000195 per share (SR-FINRA-2026-021)"
+  },
+  {
+   "key": "taf_max",
+   "value": 9.79,
+   "effective": "2026-11-13",
+   "logged_at": "2026-11-16T06:55:53",
+   "reason": "FINRA TAF maximum per trade, 2026 schedule",
+   "default": true
+  }
+ ],
+ "targets": {},
+ "theses": [],
+ "deviations": [],
+ "rules_text": "Benchmark: SPY total return, dividends reinvested, receiving the same deposits and withdrawals on the same dates as the sandbox.\nReturns: time-weighted, so deposits and withdrawals are not counted as performance.\nCosts: spread, slippage, commission and regulatory-fee settings apply to every trade from the day they are logged forward. Taxes are estimated at the rate in effect on the sale date.\nOrders: market orders fill at the latest close the data source returns, worse by half the spread plus slippage. Limit orders fill on a later daily bar only if price trades through the limit (low below a buy limit, high above a sell limit), at the limit or the open if it gapped past, with no spread. Open buy orders do not reserve cash; cash is checked when the order fills.\nRebalancing: manual, using the Rebalance button. The Monthly/Quarterly setting is a note only; no automatic trades run.\nPass: beat the benchmark net of spreads, fees, and estimated taxes over the period stated in the thesis log.\nDividends are reinvested at the close on the ex-date.\nUniverse: only the tickers you add yourself. A delisted holding will stop pricing and the app will stop.",
+ "last_div_date": "2026-11-13"
+}
