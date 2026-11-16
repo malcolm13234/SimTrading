@@ -5,9 +5,15 @@ import math
 import pandas as pd
 import requests
 import matplotlib.pyplot as plt
+import importlib
 import streamlit as st
 
 import sandbox_core as core
+
+if not hasattr(core, "new_market"):   # a pre-update module stayed in memory across the redeploy
+    importlib.reload(core)
+    if hasattr(core, "_raw_fetch"):
+        del core._raw_fetch
 
 st.set_page_config(page_title="SimTrading", layout="wide")
 
@@ -20,11 +26,11 @@ _orig_fetch = core._raw_fetch
 
 
 @st.cache_data(ttl=900, show_spinner=False)
-def cached_fetch(tickers, start):
+def cached_fetch_v2(tickers, start):   # new name so cached results from the old version are never reused
     return _orig_fetch(tuple(tickers), start)
 
 
-core.fetch = cached_fetch  # core.refresh and the order code use the cached price fetch
+core.fetch = cached_fetch_v2  # core.refresh and the order code use the cached price fetch
 
 
 def fail(e):
