@@ -607,3 +607,88 @@ def holdings_rows(s, hist):
                     f"{s['targets'].get(t, 0.0) * 100:.1f}%"])
     out.append(["CASH", "", "", f"${cash:,.2f}", f"{cash / total * 100:.1f}%" if total > 0 else "", "", ""])
     return out
+
+
+# ---------- per-stock detail (charts, key stats, news) ----------
+def fetch_detail(t, period="5y"):
+    """Daily OHLCV with dividends for one ticker, for the stock pages. Raises if nothing comes back."""
+    h = yf.Ticker(t).history(period=period, auto_adjust=False, actions=True)
+    if h is None or h.empty:
+        raise RuntimeError(f"No price history returned for {t}.")
+    idx = pd.DatetimeIndex(h.index)
+    if idx.tz is not None:
+        idx = idx.tz_localize(None)
+    h = h.copy()
+    h.index = idx.normalize()
+    return h[["Open", "High", "Low", "Close", "Volume", "Dividends", "Stock Splits"]].dropna(subset=["Close"])
+
+
+INFO_KEYS = ["longName", "shortName", "sector", "industry", "marketCap", "trailingPE", "beta",
+             "longBusinessSummary", "dividendYield", "website"]
+
+
+def fetch_info(t):
+    """Company facts from Yahoo. Fragile by nature, so any failure returns an empty dict."""
+    try:
+        info = yf.Ticker(t).info or {}
+        return {k: info.get(k) for k in INFO_KEYS}
+    except Exception:
+        return {}
+
+
+def fetch_news(t, limit=6):
+    """Headlines as (title, url, publisher). Handles both Yahoo response shapes; failure returns []."""
+    try:
+        items = yf.Ticker(t).news or []
+    except Exception:
+        return []
+    out = []
+    for it in items:
+        c = it.get("content") if isinstance(it, dict) else None
+        if c:
+            url = (c.get("canonicalUrl") or {}).get("url") or (c.get("clickThroughUrl") or {}).get("url")
+            out.append((c.get("title"), url, (c.get("provider") or {}).get("displayName")))
+        elif isinstance(it, dict):
+            out.append((it.get("title"), it.get("link"), it.get("publisher")))
+    return [(a, b, c) for a, b, c in out if a and b][:limit]
+
+
+def position_stats(s, t, last_px):
+    """Shares, average cost (fees included), value, unrealized gain, dividends received, realized-sale count."""
+    shares, cost = 0.0, 0.0
+    for e in sorted(s["events"], key=lambda e: e["date"]):
+        if e["ticker"] != t:
+            continue
+        if e["shares"] > 0:
+            shares += e["shares"]
+            cost += e["shares"] * e["price"] + e["fee"]
+        elif e["shares"] < 0 and shares > 0:
+            frac = min(1.0, -e["shares"] / shares)
+            cost -= cost * frac
+            shares += e["shares"]
+    shares = max(shares, 0.0)
+    divs = sum(e["cash"] for e in s["events"] if e["ticker"] == t and e["kind"] == "DIVIDEND")
+    value = shares * last_px
+    gain = value - cost if shares > 1e-9 else 0.0
+    return {"shares": shares, "avg_cost": cost / shares if shares > 1e-9 else 0.0, "cost": cost,
+            "value": value, "gain": gain, "gain_pct": gain / cost if cost > 1e-9 else 0.0, "dividends": divs}
+
+
+def estimate_order(s, last_px, d, side, kind, dollars=None, shares=None, limit=None):
+    """Preview for the order ticket: expected price, shares, fees and cash effect. Mirrors _fill."""
+    side, kind = side.upper(), kind.upper()
+    half = 0.0
+    if kind == "MARKET":
+        half = (get_setting(s, "spread_pct", d, 0.0) / 2 + get_setting(s, "slippage_pct", d, 0.0)) / 100
+    px = (limit if kind == "LIMIT" and limit else last_px) * (1 + half if side == "BUY" else 1 - half)
+    if px <= 0:
+        return None
+    sh = shares if shares else (dollars or 0.0) / px
+    if not get_setting(s, "fractional", d, True):
+        sh = math.floor(sh + 1e-12)
+    if sh <= 0:
+        return None
+    fb = fee_breakdown(s, d, side, sh, px)
+    gross = sh * px
+    return {"price": px, "shares": sh, "fees": fb["total"], "fee_detail": fb,
+            "cash": -(gross + fb["total"]) if side == "BUY" else gross - fb["total"]}
