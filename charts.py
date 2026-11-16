@@ -52,6 +52,8 @@ def portfolio_fig(net, bench_value, twr, rng, show_bench):
     _base(fig, 320)
     fig.update_yaxes(showgrid=True, gridcolor=FAINT, zeroline=False, showline=False, side="right",
                      tickprefix="$", tickformat=",.0f", tickfont=dict(color=MUTED))
+    if len(net) < 2:   # one day of history: give the axis a real date range instead of microseconds
+        fig.update_xaxes(range=[start - pd.Timedelta(days=3), start + pd.Timedelta(days=3)], tickformat="%b %d")
     lo, hi = float(net.min()), float(net.max())
     pad = max((hi - lo) * 0.15, hi * 0.002)
     fig.update_yaxes(range=[lo - pad, hi + pad])
