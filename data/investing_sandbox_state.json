@@ -148,5 +148,5 @@
  "theses": [],
  "deviations": [],
  "rules_text": "Benchmark: SPY total return, dividends reinvested, receiving the same deposits and withdrawals on the same dates as the sandbox.\nReturns: time-weighted, so deposits and withdrawals are not counted as performance.\nCosts: spread, slippage, commission and regulatory-fee settings apply to every trade from the day they are logged forward. Taxes are estimated at the rate in effect on the sale date.\nOrders: market orders fill at the latest close the data source returns, worse by half the spread plus slippage. Limit orders fill on a later daily bar only if price trades through the limit (low below a buy limit, high above a sell limit), at the limit or the open if it gapped past, with no spread. Open buy orders do not reserve cash; cash is checked when the order fills.\nRebalancing: manual, using the Rebalance button. The Monthly/Quarterly setting is a note only; no automatic trades run.\nPass: beat the benchmark net of spreads, fees, and estimated taxes over the period stated in the thesis log.\nDividends are reinvested at the close on the ex-date.\nUniverse: only the tickers you add yourself. A delisted holding will stop pricing and the app will stop.",
- "last_div_date": "2026-11-19"
+ "last_div_date": "2026-11-20"
 }
